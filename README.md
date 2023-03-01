@@ -24,3 +24,7 @@ how to run the checks in your repo.
 
 ** Verify the source code: after deploying the contract, in the RSK explorer find the tab code
 in the contract view. Complete with the compiler info, for the source code submit a flattened
+
+## Contracts
+- `MeowToken.sol` - a standard ERC20 token
+- `PurrNFT.sol` - NFT smart contract which receives payments in ERC20 tokens.
