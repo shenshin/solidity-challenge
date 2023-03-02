@@ -5,89 +5,92 @@ import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/utils/Counters.sol';
+import 'hardhat/console.sol';
 
 contract PurrNFT is ERC721, Ownable {
   using Counters for Counters.Counter;
 
   Counters.Counter private _tokenIdCounter;
 
-  struct Token {
-    bool whiteListed;
+  event Withdrawal(uint256 totalAmout);
+  event AddToWhiteList(IERC20 token);
+
+  struct Accepted {
+    IERC20 token;
     uint256 balance;
   }
-  event Withdrawal(uint256 totalAmout);
-  event WhiteListed(IERC20 token);
-  // allows to find out if a token is in the white list
-  mapping(IERC20 => Token) public whiteList;
-  // stores all whitelisted tokens to be able to iterate through all of them and withdraw
-  IERC20[] private whiteListTokens;
+  // stores all whitelisted tokens
+  Accepted[] public whiteList;
+  mapping(IERC20 => bool) public isAccepted;
 
   uint256 public price = 1;
 
   constructor() ERC721('PurrNFT', 'PUR') {}
 
   /**
-   * @dev Allows the owner to add tokens to the whitelist
+   * @dev Allows owner to add tokens to whitelist
    * @param tokens array of ERC20 tokens. Max array length is 40
    */
-  function addToWhiteListBatch(IERC20[] calldata tokens) external onlyOwner {
+  function addToWhiteList(IERC20[] calldata tokens) public onlyOwner {
     require(tokens.length <= 40, 'PurrNFT: Too many tokens provided');
     for (uint8 i = 0; i < tokens.length; i++) {
-      // skip if token is already in the list
-      if (whiteList[tokens[i]].whiteListed) continue;
-      whiteList[tokens[i]].whiteListed = true;
-      whiteListTokens.push(tokens[i]);
-      emit WhiteListed(tokens[i]);
+      IERC20 newToken = tokens[i];
+      // check if address is already in the whitelist
+      if (isAccepted[newToken]) continue;
+      // check if address is really a token
+      require(
+        newToken.totalSupply() > 0,
+        'PurrNFT: provide only deployed tokens'
+      );
+      isAccepted[newToken] = true;
+      whiteList.push(Accepted({token: newToken, balance: 0}));
+      emit AddToWhiteList(newToken);
     }
   }
 
   /**
-   * @dev Allows the owner to set a new NFT price
+   * @dev Allows owner to set a new NFT price
    * @param _price new NFT price in ERC20 whitelisted tokens
    */
-  function setPrice(uint256 _price) external onlyOwner {
+  function setPrice(uint256 _price) public onlyOwner {
     price = _price;
   }
 
   /**
-   * @dev Allows the owner to withdraw all ERC20 tokens payed for NFTs
+   * @dev Allows owner to withdraw all ERC20 tokens payed for NFTs
    */
-  function withdrawAll(address to) external onlyOwner {
+  function withdrawAll(address to) public onlyOwner {
     uint256 totalWithdrawn;
-    for (uint256 i = 0; i < whiteListTokens.length; i++) {
-      IERC20 token = whiteListTokens[i];
-      uint256 balance = whiteList[token].balance;
+    for (uint256 i = 0; i < whiteList.length; i++) {
+      Accepted storage accepted = whiteList[i];
+      uint256 balance = accepted.balance;
       if (balance == 0) continue;
       totalWithdrawn += balance;
-      whiteList[token].balance = 0;
-      token.transfer(to, balance);     
+      accepted.balance = 0;
+      accepted.token.transfer(to, balance);
     }
     emit Withdrawal(totalWithdrawn);
   }
 
   /**
    * @dev Allows any user to buy NFT for ERC20 tokens from the whitelist.
-   * NFT price can be read from `price()` getter
-   * @param _token whitelisted ERC20 token owned by a user. User has to
-   * set allowance for the NFT s/c to transfer his tokens
    */
-  function buy(IERC20 _token) external {
-    Token storage token = whiteList[_token];
-    // check if token is in the white list
-    require(token.whiteListed, 'PurrNFT: Unknown token');
-    // transfer tokens
-    bool transferSucceeded = _token.transferFrom(
-      msg.sender,
-      address(this),
-      price
-    );
-    require(transferSucceeded, 'PurrNFT: Cannot transfer tokens');
+  function buy() external {
+    // transfer `price` from every whitelisted token
+    for (uint256 i = 0; i < whiteList.length; i++) {
+      Accepted storage accepted = whiteList[i];
+      bool transferSucceeded = accepted.token.transferFrom(
+        msg.sender,
+        address(this),
+        price
+      );
+      require(transferSucceeded, 'PurrNFT: Cannot transfer tokens');
+      accepted.balance += price;
+    }
     // mint NFT
     uint256 tokenId = _tokenIdCounter.current();
     _tokenIdCounter.increment();
     _safeMint(msg.sender, tokenId);
-    // record balances
-    token.balance += price;
   }
 
   fallback() external {

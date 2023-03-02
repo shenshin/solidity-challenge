@@ -3,75 +3,117 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { BigNumber } from 'ethers';
-import { MeowToken, PurrNFT } from '../typechain-types';
+import { MeowToken, PurrNFT, ERC20 } from '../typechain-types';
 
 describe('Purr NFT', () => {
-  let meow: MeowToken;
+  let meow1: ERC20;
+  let meow2: ERC20;
+  let meow3: ERC20;
   let purr: PurrNFT;
 
-  async function deploy(): Promise<[MeowToken, PurrNFT]> {
-    const [owner, otherAccount] = await ethers.getSigners();
+  async function deploy(): Promise<[ERC20, ERC20, ERC20, PurrNFT]> {
+    const [owner1, owner2, owner3] = await ethers.getSigners();
 
     const MeowFactory = await ethers.getContractFactory('MeowToken');
-    const meowToken = await MeowFactory.deploy('10000');
-    await meowToken.deployed();
+    const initialSupply = '10000';
+    // 3 team mates deploy 3 ERC20 tokens
+    const meowToken1: ERC20 = await MeowFactory.connect(owner1).deploy(
+      initialSupply,
+    );
+    await meowToken1.deployed();
+    const meowToken2: ERC20 = await MeowFactory.connect(owner2).deploy(
+      initialSupply,
+    );
+    await meowToken2.deployed();
+    const meowToken3: ERC20 = await MeowFactory.connect(owner3).deploy(
+      initialSupply,
+    );
+    await meowToken3.deployed();
 
     const PurrFactory = await ethers.getContractFactory('PurrNFT');
     const purrNFT = await PurrFactory.deploy();
     await purrNFT.deployed();
 
-    return [meowToken, purrNFT];
+    return [meowToken1, meowToken2, meowToken3, purrNFT];
   }
 
   before(async () => {
-    [meow, purr] = await deploy();
+    [meow1, meow2, meow3, purr] = await deploy();
   });
 
-  it('Should whitelist MEO token in PurrNFT', async () => {
-    const tx = await purr.addToWhiteListBatch([meow.address]);
-    await expect(tx).to.emit(purr, 'WhiteListed').withArgs(meow.address);
+  it('Should whitelist MEO tokens in PurrNFT', async () => {
+    const tx = await purr.addToWhiteList([
+      meow1.address,
+      meow2.address,
+      meow3.address,
+    ]);
+    await expect(tx).to.emit(purr, 'AddToWhiteList').withArgs(meow1.address);
+    await expect(tx).to.emit(purr, 'AddToWhiteList').withArgs(meow2.address);
+    await expect(tx).to.emit(purr, 'AddToWhiteList').withArgs(meow3.address);
   });
 
-  it('should not whitelist any tokens with empty array', async () => {
-    const tx = await purr.addToWhiteListBatch([]);
-    await expect(tx).not.to.emit(purr, 'WhiteListed');
+  it('Added tokens should be in the whitelist', async () => {
+    expect(await purr.isAccepted(meow1.address)).to.be.true;
+    expect(await purr.isAccepted(meow2.address)).to.be.true;
+    expect(await purr.isAccepted(meow3.address)).to.be.true;
   });
 
   it('should not whitelist token second time', async () => {
-    const tx = await purr.addToWhiteListBatch([meow.address]);
-    await expect(tx).not.to.emit(purr, 'WhiteListed');
+    const tx = await purr.addToWhiteList([meow1.address]);
+    await expect(tx).not.to.emit(purr, 'AddToWhiteList');
   });
 
-  // I am allowing to whitelist any addresses without verification
-  // It still won't be possible to buy anything with them
-  it('should let whitelist non-ERC20 addresses', async () => {
+  it('should not let whitelist non-ERC20 addresses', async () => {
     const [owner] = await ethers.getSigners();
-    const tx = await purr.addToWhiteListBatch([owner.address]);
-    await expect(tx).to.emit(purr, 'WhiteListed');
+    const tx = purr.addToWhiteList([owner.address]);
+    await expect(tx).to.be.reverted;
+  });
+
+  it('team mates should exchange their tokens', async () => {
+    const [owner1, owner2, owner3] = await ethers.getSigners();
+    const tokensToSend = 10;
+    const tx1 = await meow2
+      .connect(owner2)
+      .transfer(owner1.address, tokensToSend);
+    await tx1.wait();
+    const tx2 = await meow3
+      .connect(owner3)
+      .transfer(owner1.address, tokensToSend);
+    await tx2.wait();
+  });
+
+  it('owner1 should now own all tokens', async () => {
+    const [owner] = await ethers.getSigners();
+    await Promise.all(
+      [meow1, meow2, meow3].map(async (token: ERC20) => {
+        expect(await token.balanceOf(owner.address)).to.be.greaterThanOrEqual(
+          10,
+        );
+      }),
+    );
   });
 
   it('should not be able to buy NFT without approval', async () => {
-    const tx = purr.buy(meow.address);
-    await expect(tx).to.be.revertedWith('ERC20: insufficient allowance');
+    await expect(purr.buy()).to.be.revertedWith(
+      'ERC20: insufficient allowance',
+    );
   });
 
   it('buyer should approve Meow transfers for Purr', async () => {
     const [owner] = await ethers.getSigners();
-    const tx = meow.approve(purr.address, 1);
-    await expect(tx)
-      .to.emit(meow, 'Approval')
-      .withArgs(owner.address, purr.address, 1);
+    await Promise.all(
+      [meow1, meow2, meow3].map(async (token: ERC20) => {
+        const tx = token.connect(owner).approve(purr.address, 1);
+        await expect(tx)
+          .to.emit(token, 'Approval')
+          .withArgs(owner.address, purr.address, 1);
+      }),
+    );
   });
 
-  it('user should NOT be able to buy NFT with non-ERC20 address', async () => {
+  it('owner1 should buy NFT', async () => {
     const [owner] = await ethers.getSigners();
-    const tx = purr.buy(owner.address);
-    await expect(tx).to.be.reverted;
-  });
-
-  it('user should buy NFT', async () => {
-    const [owner] = await ethers.getSigners();
-    const tx = purr.buy(meow.address);
+    const tx = purr.connect(owner).buy();
     const tokenId = 0;
     await expect(tx)
       .to.emit(purr, 'Transfer')
@@ -81,7 +123,15 @@ describe('Purr NFT', () => {
   it('owner should be able to withdraw Meow tokens', async () => {
     const [owner] = await ethers.getSigners();
     const tx = purr.withdrawAll(owner.address);
-    await expect(() => tx).to.changeTokenBalances(meow, [owner, purr], [1, -1]);
-    await expect(tx).to.emit(purr, 'Withdrawal').withArgs(1);
+    await Promise.all(
+      [meow1, meow2, meow3].map(async (token: ERC20) => {
+        await expect(() => tx).to.changeTokenBalances(
+          token,
+          [owner, purr],
+          [1, -1],
+        );
+      }),
+    );
+    await expect(tx).to.emit(purr, 'Withdrawal').withArgs(3);
   });
 });
