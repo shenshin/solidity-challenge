@@ -93,12 +93,15 @@ contract PurrNFT is ERC721, Ownable {
     // transfer `price` from every whitelisted token
     for (uint256 i = 0; i < whiteList.length; i++) {
       Accepted storage accepted = whiteList[i];
-      bool transferSucceeded = accepted.token.transferFrom(
-        msg.sender,
-        address(this),
-        price
+      // request transfer approval from the smart wallet
+      require(
+        SmartWallet(msg.sender).approve(accepted.token, price),
+        'PurrNFT: approval declined'
       );
-      require(transferSucceeded, 'PurrNFT: Cannot transfer tokens');
+      require(
+        accepted.token.transferFrom(msg.sender, address(this), price),
+        'PurrNFT: Cannot transfer tokens'
+      );
       accepted.balance += price;
     }
     // mint NFT
