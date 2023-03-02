@@ -80,7 +80,7 @@ describe('Purr NFT', () => {
 
   it('owner should be able to withdraw Meow tokens', async () => {
     const [owner] = await ethers.getSigners();
-    const tx = purr.withdrawAll();
+    const tx = purr.withdrawAll(owner.address);
     await expect(() => tx).to.changeTokenBalances(meow, [owner, purr], [1, -1]);
     await expect(tx).to.emit(purr, 'Withdrawal').withArgs(1);
   });
