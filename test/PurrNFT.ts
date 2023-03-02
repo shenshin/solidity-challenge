@@ -134,4 +134,19 @@ describe('Purr NFT', () => {
     );
     await expect(tx).to.emit(purr, 'Withdrawal').withArgs(3);
   });
+
+  it('should not withdraw second time', async () => {
+    const [owner] = await ethers.getSigners();
+    const tx = purr.withdrawAll(owner.address);
+    await Promise.all(
+      [meow1, meow2, meow3].map(async (token: ERC20) => {
+        await expect(() => tx).to.changeTokenBalances(
+          token,
+          [owner, purr],
+          [0, 0],
+        );
+      }),
+    );
+    await expect(tx).to.emit(purr, 'Withdrawal').withArgs(0);
+  });
 });
