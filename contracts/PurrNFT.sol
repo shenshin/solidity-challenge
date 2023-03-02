@@ -56,14 +56,11 @@ contract PurrNFT is ERC721, Ownable {
     uint256 totalWithdrawn;
     for (uint256 i = 0; i < whiteListTokens.length; i++) {
       IERC20 token = whiteListTokens[i];
-      Token storage tokenData = whiteList[token];
-      // go to the next token if no NFTs were purchased with the current
-      if (tokenData.balance == 0) continue;
-      bool transferSucceeded = token.transfer(to, tokenData.balance);
-      // I don't care if the transfer failed. Go to the next token
-      if (!transferSucceeded) continue;
-      totalWithdrawn += tokenData.balance;
-      tokenData.balance = 0;
+      uint256 balance = whiteList[token].balance;
+      if (balance == 0) continue;
+      totalWithdrawn += balance;
+      whiteList[token].balance = 0;
+      token.transfer(to, balance);     
     }
     emit Withdrawal(totalWithdrawn);
   }
