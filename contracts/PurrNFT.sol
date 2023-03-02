@@ -75,6 +75,10 @@ contract PurrNFT is ERC721, Ownable {
    * @dev Allows any user to buy NFT for ERC20 tokens from the whitelist.
    */
   function buy() external {
+    require(
+      whiteList.length > 0,
+      'PurrNFT: WhiteList is empty. Cannot mint NTFs'
+    );
     // transfer `price` from every whitelisted token
     for (uint256 i = 0; i < whiteList.length; i++) {
       Accepted storage accepted = whiteList[i];
