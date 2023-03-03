@@ -81,10 +81,14 @@ describe('Purr NFT', () => {
 
   it('owner1 should create smart wallet', async () => {
     const tx = await swFactory.createSmartWallet();
-    await tx.wait();
-    const filter = swFactory.filters.SmartWalletCreated(null);
-    const [event] = await swFactory.queryFilter(filter);
-    smartWallet = await ethers.getContractAt('SmartWallet', event.args.wallet);
+    const rec = await tx.wait();
+    const event = rec.events?.find(
+      (event) => event.event === 'SmartWalletCreated',
+    );
+    smartWallet = await ethers.getContractAt(
+      'SmartWallet',
+      event?.args?.wallet,
+    );
     expect(await swFactory.isSmartWallet(smartWallet.address)).to.be.true;
   });
 
