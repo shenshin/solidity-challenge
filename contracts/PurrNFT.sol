@@ -22,6 +22,7 @@ contract PurrNFT is ERC721, Ownable {
   }
   // stores all whitelisted tokens
   Accepted[] public whiteList;
+  // get length function?
   mapping(IERC20 => bool) public isAccepted;
 
   uint256 public price = 1;
@@ -94,10 +95,6 @@ contract PurrNFT is ERC721, Ownable {
     for (uint256 i = 0; i < whiteList.length; i++) {
       Accepted storage accepted = whiteList[i];
       // request transfer approval from the smart wallet
-      require(
-        SmartWallet(msg.sender).approve(accepted.token, price),
-        'PurrNFT: approval declined'
-      );
       require(
         accepted.token.transferFrom(msg.sender, address(this), price),
         'PurrNFT: Cannot transfer tokens'

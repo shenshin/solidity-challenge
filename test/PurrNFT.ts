@@ -113,6 +113,17 @@ describe('Purr NFT', () => {
     );
   });
 
+  it('smart wallet should approve allowance for PurrNFT', async () => {
+    const tx = smartWallet.approveAll(
+      purr.address,
+      1,
+      [meow1, meow2, meow3].map((t) => t.address),
+    );
+    await expect(tx).to.emit(meow1, 'Approval');
+    await expect(tx).to.emit(meow2, 'Approval');
+    await expect(tx).to.emit(meow3, 'Approval');
+  });
+
   it('owner1 should not be able to buy NFT directly', async () => {
     const [owner] = await ethers.getSigners();
     const tx = purr.connect(owner).buy();

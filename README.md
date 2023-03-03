@@ -19,6 +19,20 @@ The challenge has 4 modules basic modules
 will need to choose a participant as the owner.
 4. Each participant must get all the tokens and create their NFT
 
+The difficult modules: the NFT contract verifies that the user buying a new NFT is doing it via
+a smart wallet
+
+5. The group creates a smart wallet factory contract. Any user can use this contract to
+create a new smart wallet.
+6. The group makes the NFT verify the buyer is doing it via a smart wallet created with
+the smart wallet factory. Hint: pass the smart wallet factory contract address via
+constructor
+This means the user must collect the tokens in their smart wallet that they created using the
+smart wallet factory. Hint: remember deploys and calls class.
+Extra points: finding a vulnerability in the colleague’s contracts adds extra points! To report it,
+you should publish the exploit code.
+
+ ------
 * Some vulnerabilities can be discovered using static analysis tools like Slither. See here
 how to run the checks in your repo.
 
@@ -28,3 +42,5 @@ in the contract view. Complete with the compiler info, for the source code submi
 ## Contracts
 - `MeowToken.sol` - a standard ERC20 token
 - `PurrNFT.sol` - NFT smart contract which receives payments in ERC20 tokens.
+- `SmartWalletFactory.sol` - a factory which deploys Smart Wallets and transfers their ownership to a caller
+- `SmartWallet.sol` a smart contract which allows to buy an NFT from PurrNFT for owned ERC20 tokens
