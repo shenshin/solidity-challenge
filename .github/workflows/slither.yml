@@ -5,4 +5,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: crytic/slither-action@v0.3.0
+
+      - name: Slither Static Analysis
+        uses: crytic/slither-action@v0.3.0
+        with: 
+          solc-version: '0.8.9'
+          node-version: 18.x
+
