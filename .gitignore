@@ -10,4 +10,5 @@ cache
 artifacts
 
 .secret.json
+.DS_Store
 package-lock.json

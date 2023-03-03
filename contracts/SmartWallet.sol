@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.17;
 
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import './PurrNFT.sol';
 
 contract SmartWallet is Ownable {
-  constructor(address _owner) {
-    _transferOwnership(_owner);
+  constructor(address newOwner) {
+    _transferOwnership(newOwner);
   }
 
   /**

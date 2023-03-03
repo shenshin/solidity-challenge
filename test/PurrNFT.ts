@@ -147,7 +147,6 @@ describe('Purr NFT', () => {
         );
       }),
     );
-    await expect(tx).to.emit(purr, 'Withdrawal').withArgs(3);
   });
 
   it('should not withdraw second time', async () => {
@@ -162,6 +161,5 @@ describe('Purr NFT', () => {
         );
       }),
     );
-    await expect(tx).to.emit(purr, 'Withdrawal').withArgs(0);
   });
 });

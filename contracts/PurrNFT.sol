@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.17;
 
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/utils/Counters.sol';
+import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import './SmartWalletFactory.sol';
 import './SmartWallet.sol';
 
-contract PurrNFT is ERC721, Ownable {
+contract PurrNFT is ERC721, Ownable, ReentrancyGuard {
   using Counters for Counters.Counter;
 
   Counters.Counter private _tokenIdCounter;
 
-  event Withdrawal(uint256 totalAmout);
   event AddToWhiteList(IERC20 token);
+  event PriceSet(uint256 newPrice);
 
   struct Accepted {
     IERC20 token;
@@ -60,32 +61,33 @@ contract PurrNFT is ERC721, Ownable {
 
   /**
    * @dev Allows owner to set a new NFT price
-   * @param _price new NFT price in ERC20 whitelisted tokens
+   * @param newPrice new NFT price in ERC20 whitelisted tokens
    */
-  function setPrice(uint256 _price) public onlyOwner {
-    price = _price;
+  function setPrice(uint256 newPrice) public onlyOwner {
+    price = newPrice;
+    emit PriceSet(newPrice);
   }
 
   /**
    * @dev Allows owner to withdraw all ERC20 tokens payed for NFTs
    */
-  function withdrawAll(address to) public onlyOwner {
-    uint256 totalWithdrawn;
+  function withdrawAll(address to) public onlyOwner nonReentrant {
     for (uint256 i = 0; i < whiteList.length; i++) {
       Accepted storage accepted = whiteList[i];
       uint256 balance = accepted.balance;
       if (balance == 0) continue;
-      totalWithdrawn += balance;
       accepted.balance = 0;
-      accepted.token.transfer(to, balance);
+      require(
+        accepted.token.transfer(to, balance),
+        'PurrNFT: Cannot transfer tokens'
+      );
     }
-    emit Withdrawal(totalWithdrawn);
   }
 
   /**
    * @dev Allows any user to buy NFT through a smart wallet.
    */
-  function buy() external onlySmartWallet {
+  function buy() external onlySmartWallet nonReentrant {
     require(
       whiteList.length > 0,
       'PurrNFT: WhiteList is empty. Cannot mint NTFs'
@@ -93,11 +95,11 @@ contract PurrNFT is ERC721, Ownable {
     // transfer `price` from every whitelisted token
     for (uint256 i = 0; i < whiteList.length; i++) {
       Accepted storage accepted = whiteList[i];
+      accepted.balance += price;
       require(
         accepted.token.transferFrom(msg.sender, address(this), price),
         'PurrNFT: Cannot transfer tokens'
       );
-      accepted.balance += price;
     }
     // mint NFT
     uint256 tokenId = _tokenIdCounter.current();
@@ -107,9 +109,5 @@ contract PurrNFT is ERC721, Ownable {
 
   fallback() external {
     revert('PurrNFT: unknown function call');
-  }
-
-  receive() external payable {
-    revert('PurrNFT: I receive payments in whitelisted ERC20 tokens only');
   }
 }
