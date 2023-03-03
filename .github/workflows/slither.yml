@@ -6,9 +6,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.x
+
       - name: Slither Static Analysis
         uses: crytic/slither-action@v0.3.0
         with: 
           solc-version: '0.8.9'
-          node-version: 18.x
 
