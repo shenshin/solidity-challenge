@@ -71,7 +71,7 @@ contract PurrNFT is ERC721, Ownable, ReentrancyGuard {
   /**
    * @dev Allows owner to withdraw all ERC20 tokens payed for NFTs
    */
-  function withdrawAll(address to) public onlyOwner {
+  function withdrawAll(address to) public onlyOwner nonReentrant {
     for (uint256 i = 0; i < whiteList.length; i++) {
       Accepted storage accepted = whiteList[i];
       uint256 balance = accepted.balance;
