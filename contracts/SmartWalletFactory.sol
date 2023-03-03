@@ -13,7 +13,7 @@ contract SmartWalletFactory {
    * @dev Creates smart wallet and transfers ownership to the caller
    */
   function createSmartWallet() external {
-    SmartWallet newWallet = new SmartWallet();
+    SmartWallet newWallet = new SmartWallet(msg.sender);
     isSmartWallet[newWallet] = true;
     emit SmartWalletCreated(newWallet);
   }
