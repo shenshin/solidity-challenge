@@ -1,17 +1,23 @@
-import { time, loadFixture } from '@nomicfoundation/hardhat-network-helpers';
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
-import { BigNumber } from 'ethers';
-import { MeowToken, PurrNFT, ERC20 } from '../typechain-types';
+import {
+  SmartWallet,
+  SmartWalletFactory,
+  PurrNFT,
+  ERC20,
+} from '../typechain-types';
 
 describe('Purr NFT', () => {
   let meow1: ERC20;
   let meow2: ERC20;
   let meow3: ERC20;
   let purr: PurrNFT;
+  let swFactory: SmartWalletFactory;
+  let smartWallet: SmartWallet;
 
-  async function deploy(): Promise<[ERC20, ERC20, ERC20, PurrNFT]> {
+  async function deploy(): Promise<
+    [ERC20, ERC20, ERC20, SmartWalletFactory, PurrNFT]
+  > {
     const [owner1, owner2, owner3] = await ethers.getSigners();
 
     const MeowFactory = await ethers.getContractFactory('MeowToken');
@@ -30,15 +36,19 @@ describe('Purr NFT', () => {
     );
     await meowToken3.deployed();
 
+    const SwfFactory = await ethers.getContractFactory('SmartWalletFactory');
+    const swf = await SwfFactory.deploy();
+    await swf.deployed();
+
     const PurrFactory = await ethers.getContractFactory('PurrNFT');
-    const purrNFT = await PurrFactory.deploy();
+    const purrNFT = await PurrFactory.deploy(swf.address);
     await purrNFT.deployed();
 
-    return [meowToken1, meowToken2, meowToken3, purrNFT];
+    return [meowToken1, meowToken2, meowToken3, swf, purrNFT];
   }
 
   before(async () => {
-    [meow1, meow2, meow3, purr] = await deploy();
+    [meow1, meow2, meow3, swFactory, purr] = await deploy();
   });
 
   it('Should whitelist MEO tokens in PurrNFT', async () => {
@@ -69,55 +79,49 @@ describe('Purr NFT', () => {
     await expect(tx).to.be.reverted;
   });
 
-  it('team mates should exchange their tokens', async () => {
+  it('owner1 should create smart wallet', async () => {
+    const tx = await swFactory.createSmartWallet();
+    await tx.wait();
+    const filter = swFactory.filters.SmartWalletCreated(null);
+    const [event] = await swFactory.queryFilter(filter);
+    smartWallet = await ethers.getContractAt('SmartWallet', event.args.wallet);
+    expect(await swFactory.isSmartWallet(smartWallet.address)).to.be.true;
+  });
+
+  it('team mates should send tokens to the smart wallet', async () => {
     const [owner1, owner2, owner3] = await ethers.getSigners();
     const tokensToSend = 10;
-    const tx1 = await meow2
+    const tx1 = await meow1
+      .connect(owner1)
+      .transfer(smartWallet.address, tokensToSend);
+    await expect(tx1).to.emit(meow1, 'Transfer');
+    const tx2 = await meow2
       .connect(owner2)
-      .transfer(owner1.address, tokensToSend);
-    await tx1.wait();
-    const tx2 = await meow3
+      .transfer(smartWallet.address, tokensToSend);
+    await expect(tx2).to.emit(meow2, 'Transfer');
+    const tx3 = await meow3
       .connect(owner3)
-      .transfer(owner1.address, tokensToSend);
-    await tx2.wait();
+      .transfer(smartWallet.address, tokensToSend);
+    await expect(tx3).to.emit(meow3, 'Transfer');
   });
 
-  it('owner1 should now own all tokens', async () => {
-    const [owner] = await ethers.getSigners();
+  it('smartwallet should now own every kind of tokens', async () => {
     await Promise.all(
       [meow1, meow2, meow3].map(async (token: ERC20) => {
-        expect(await token.balanceOf(owner.address)).to.be.greaterThanOrEqual(
-          10,
-        );
+        expect(await token.balanceOf(smartWallet.address)).to.be.equal(10);
       }),
     );
   });
 
-  it('should not be able to buy NFT without approval', async () => {
-    await expect(purr.buy()).to.be.revertedWith(
-      'ERC20: insufficient allowance',
-    );
-  });
-
-  it('buyer should approve Meow transfers for Purr', async () => {
-    const [owner] = await ethers.getSigners();
-    await Promise.all(
-      [meow1, meow2, meow3].map(async (token: ERC20) => {
-        const tx = token.connect(owner).approve(purr.address, 1);
-        await expect(tx)
-          .to.emit(token, 'Approval')
-          .withArgs(owner.address, purr.address, 1);
-      }),
-    );
-  });
-
-  it('owner1 should buy NFT', async () => {
+  it('owner1 should not be able to buy NFT directly', async () => {
     const [owner] = await ethers.getSigners();
     const tx = purr.connect(owner).buy();
-    const tokenId = 0;
-    await expect(tx)
-      .to.emit(purr, 'Transfer')
-      .withArgs(ethers.constants.AddressZero, owner.address, tokenId);
+    await expect(tx).to.be.reverted;
+  });
+
+  it('smart wallet should be able to buy NFT', async () => {
+    const tx = smartWallet.buyNFT(purr.address);
+    await expect(tx).to.emit(purr, 'Transfer');
   });
 
   it('owner should be able to withdraw Meow tokens', async () => {
