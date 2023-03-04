@@ -81,10 +81,14 @@ describe('Purr NFT', () => {
 
   it('owner1 should create smart wallet', async () => {
     const tx = await swFactory.createSmartWallet();
-    await tx.wait();
-    const filter = swFactory.filters.SmartWalletCreated(null);
-    const [event] = await swFactory.queryFilter(filter);
-    smartWallet = await ethers.getContractAt('SmartWallet', event.args.wallet);
+    const rec = await tx.wait();
+    const event = rec.events?.find(
+      (event) => event.event === 'SmartWalletCreated',
+    );
+    smartWallet = await ethers.getContractAt(
+      'SmartWallet',
+      event?.args?.wallet,
+    );
     expect(await swFactory.isSmartWallet(smartWallet.address)).to.be.true;
   });
 
@@ -131,8 +135,16 @@ describe('Purr NFT', () => {
   });
 
   it('smart wallet should be able to buy NFT', async () => {
-    const tx = smartWallet.buyNFT(purr.address);
-    await expect(tx).to.emit(purr, 'Transfer');
+    const [owner] = await ethers.getSigners();
+    const tx = await smartWallet.buyNFT(purr.address);
+    const rec = await tx.wait();
+    const filter = purr.filters.Transfer(
+      ethers.constants.AddressZero,
+      owner.address,
+      null,
+    );
+    const [transfer] = await purr.queryFilter(filter, rec.blockHash);
+    expect(transfer.args.tokenId).to.equal(0);
   });
 
   it('owner should be able to withdraw Meow tokens', async () => {

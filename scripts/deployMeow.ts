@@ -5,10 +5,6 @@ async function main() {
   const meow = await MeowFactory.deploy(10000);
   await meow.deployed();
   console.log(`Meow was deployed to ${meow.address}`);
-  const PurrFactory = await ethers.getContractFactory('PurrNFT');
-  const purr = await PurrFactory.deploy();
-  await purr.deployed();
-  console.log(`PurrNFT was deployed to ${purr.address}`);
 }
 
 main().catch((error) => {
