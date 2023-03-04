@@ -1,19 +1,19 @@
 import { ethers } from 'hardhat';
-import { tokens } from '../erc20Deployments';
-
-const purrNftAddress = '0x3C744E6F8173aba2CE0D46B4d1A3dFE0909f58e4';
+import { deployments } from '../deployments';
 
 async function main() {
   const purrNft = await ethers.getContractAt(
     'PurrNFT',
-    purrNftAddress.toLowerCase(),
+    deployments.purrNft.toLowerCase(),
   );
-  const tokenAddresses: string[] = tokens.map((t) => t.address.toLowerCase());
+  const tokenAddresses: string[] = deployments.erc20.map((t) =>
+    t.address.toLowerCase(),
+  );
   const tx = await purrNft.addToWhiteList(tokenAddresses);
   const receipt = await tx.wait();
   console.log(`White list was updated. Tx hash: ${receipt.transactionHash}`);
   await Promise.all(
-    tokens.map(async (token) => {
+    deployments.erc20.map(async (token) => {
       console.log(`
     token owner: ${token.owner}
     address: ${token.address}

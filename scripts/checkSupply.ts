@@ -1,9 +1,9 @@
 import { ethers } from 'hardhat';
-import { tokens } from '../erc20Deployments';
+import { deployments } from '../deployments';
 
 async function main() {
   await Promise.all(
-    tokens.map(async (token) => {
+    deployments.erc20.map(async (token) => {
       const erc20 = await ethers.getContractAt(
         'ERC20',
         token.address.toLowerCase(),

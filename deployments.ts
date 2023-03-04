@@ -3,8 +3,7 @@ interface RootstockTestnetToken {
   name: string;
   owner: string;
 }
-
-export const tokens: RootstockTestnetToken[] = [
+const tokens: RootstockTestnetToken[] = [
   {
     owner: 'Antonio Carlo Dante Lottero',
     name: 'Tony Token 2',
@@ -26,4 +25,10 @@ export const tokens: RootstockTestnetToken[] = [
     address: '0x4D83b0cA87CfFd467e8B9f2C91aB02dCD7D46420',
   }, */
 ];
-export default tokens;
+
+export const deployments = {
+  smartWalletFactory: '0x784a5a87F4F0bF107B6eE815a5840D7Afc964480',
+  smartWallet: '0x3a54c11bd5e43Ad2A07077d85b7Ff4bd93fEcE6C',
+  purrNft: '0x3C744E6F8173aba2CE0D46B4d1A3dFE0909f58e4',
+  erc20: tokens,
+};
