@@ -7,7 +7,7 @@ contract SmartWalletFactory {
   // records addresses of all created smart wallets
   mapping(SmartWallet => bool) public isSmartWallet;
 
-  event SmartWalletCreated(SmartWallet wallet);
+  event SmartWalletCreated(SmartWallet indexed wallet);
 
   /**
    * @dev Creates smart wallet and transfers ownership to the caller

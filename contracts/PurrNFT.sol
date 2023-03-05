@@ -14,8 +14,8 @@ contract PurrNFT is ERC721, Ownable, ReentrancyGuard {
 
   Counters.Counter private _tokenIdCounter;
 
-  event AddToWhiteList(IERC20 token);
-  event PriceSet(uint256 newPrice);
+  event AddToWhiteList(IERC20 indexed token);
+  event PriceSet(uint256 indexed newPrice);
 
   struct Accepted {
     IERC20 token;
@@ -68,6 +68,7 @@ contract PurrNFT is ERC721, Ownable, ReentrancyGuard {
     emit PriceSet(newPrice);
   }
 
+  event TransferFailed(uint256 amount, address to);
   /**
    * @dev Allows owner to withdraw all ERC20 tokens payed for NFTs
    */
@@ -77,10 +78,15 @@ contract PurrNFT is ERC721, Ownable, ReentrancyGuard {
       uint256 balance = accepted.balance;
       if (balance == 0) continue;
       accepted.balance = 0;
-      require(
+      try accepted.token.transfer(to, balance) {
+        
+      } catch  {
+        emit TransferFailed(balance, to);
+      }
+      /* require(
         accepted.token.transfer(to, balance),
         'PurrNFT: Cannot transfer tokens'
-      );
+      ); */
     }
   }
 
